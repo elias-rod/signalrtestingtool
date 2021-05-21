@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -30,15 +27,13 @@ namespace SignalRTest
         private readonly int _connectionNumber;
         private readonly ISignalRService _signalRService;
         private readonly ILogger<Worker> _logger;
-        private readonly TelemetryClient _telemetryClient;
-        private IOperationHolder<RequestTelemetry> _operation;
         private object _lockClientsConnected;
         private object _lockClientsReceivedData;
         private object _lockAddConnection;
         private readonly ICollection<HubConnection> _hubsConnections;
         private readonly ITestConfiguration _testConfiguration;
 
-        public Worker(ISignalRService signalRService, ILogger<Worker> logger, TelemetryClient telemetryClient, ITestConfiguration testConfiguration)
+        public Worker(ISignalRService signalRService, ILogger<Worker> logger, ITestConfiguration testConfiguration)
         {
             _signalRService = signalRService;
             _connectionNumber = testConfiguration.SignalRConcurrentConnections;
@@ -47,13 +42,11 @@ namespace SignalRTest
             _lockClientsConnected = new object();
             _lockClientsReceivedData = new object();
             _lockAddConnection = new object();
-            _telemetryClient = telemetryClient;
             _testConfiguration = testConfiguration;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _operation = _telemetryClient.StartOperation<RequestTelemetry>($"{_testConfiguration.TestName} {Guid.NewGuid()}");
             _logger.LogInformation($"Starting test {_testConfiguration.TestName}");
             var numberClientsConnected = 0;
             var numberClientsReceivedData = 0;
@@ -134,9 +127,6 @@ namespace SignalRTest
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             await DisposeConnectionsAsync(cancellationToken);
-
-            _telemetryClient.StopOperation(_operation);
-            _operation.Dispose();
         }
 
         private async Task DisposeConnectionsAsync(CancellationToken cancellationToken)
